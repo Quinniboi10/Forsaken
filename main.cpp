@@ -1222,8 +1222,7 @@ public:
         auto& opponentPieces = checkWhite ? black : white;
 
         // *** SLIDING PIECE ATTACKS ***
-        u64 allPieces = whitePieces | blackPieces;
-        u64& occupancy = allPieces;
+        u64 occupancy = whitePieces | blackPieces;
 
         // Straight Directions (Rooks and Queens)
         if ((opponentPieces[3] | opponentPieces[4]) & getRookAttacks(Square(square), occupancy)) return true;
@@ -1295,13 +1294,16 @@ public:
         u64& king = side ? white[5] : black[5];
 
         // King moves
-        if ((side ? white[5] : black[5]) & (1ULL << from)) {
-            Board testBoard = *this;
-            testBoard.move(m, false);
-            return !testBoard.isInCheck(side);
+        if (king & (1ULL << from)) {
             u64 lastKing = king;
+            u64& pieces = side ? whitePieces : blackPieces;
+            u64 lastPieces = pieces;
+
+            pieces ^= king;
             king = 0;
+            
             bool ans = !isUnderAttack(side, to);
+            pieces = lastPieces;
             king = lastKing;
             return ans;
         }
@@ -1348,7 +1350,7 @@ public:
                 checkMask |= (1ULL << (kingIndex - 9));
         }
 
-        if (popcountll(checks) > 1) { // Returns false because more than 1 checker requires a king move, and those are already handled
+        if (popcountll(checks) + popcountll(checkMask) > 1) { // Returns false because more than 1 checker requires a king move, and those are already handled
             return false;
         }
 
@@ -1979,9 +1981,6 @@ int main() {
             cout << "Black rooks: " << popcountll(currentPos.black[3]) << endl;
             cout << "Black queens: " << popcountll(currentPos.black[4]) << endl;
             cout << "Black king: " << popcountll(currentPos.black[5]) << endl;
-        }
-        else if (parsedcommand.at(0) == "debug.readbit") {
-            cout << readBit(currentPos.white[ROOK], h1) << endl;
         }
     }
     return 0;
