@@ -181,7 +181,7 @@ public:
         }
     }
 
-    string toString(Board& board);
+    inline string toString(Board& board);
 
     inline int startSquare() { return move & 0b111111; }
     inline int endSquare() { return (move >> 6) & 0b111111; }
@@ -200,7 +200,7 @@ std::deque<string> split(const string& s, char delim) {
     return result;
 }
 
-int findIndexOf(const std::deque<string>& deque, string entry) {
+inline int findIndexOf(const std::deque<string>& deque, string entry) {
     auto it = std::find(deque.begin(), deque.end(), entry);
     if (it != deque.end()) {
         return std::distance(deque.begin(), it); // Calculate the index
@@ -208,7 +208,7 @@ int findIndexOf(const std::deque<string>& deque, string entry) {
     return -1; // Not found
 }
 
-void printBitboard(u64 bitboard) {
+inline void printBitboard(u64 bitboard) {
     for (int rank = 7; rank >= 0; --rank) {
         cout << "+---+---+---+---+---+---+---+---+" << endl;
         for (int file = 0; file < 8; ++file) {
@@ -222,7 +222,7 @@ void printBitboard(u64 bitboard) {
     cout << "+---+---+---+---+---+---+---+---+" << endl;
 }
 
-string formatNum(u64 v) {
+inline string formatNum(u64 v) {
     auto s = std::to_string(v);
 
     int n = s.length() - 3;
@@ -542,8 +542,8 @@ u64 Precomputed::isOn7;
 u64 Precomputed::isOn8;
 
 
-constexpr Rank rankOf(Square s) { return Rank(s >> 3); }
-constexpr File fileOf(Square s) { return File(s & 0b111); }
+constexpr inline Rank rankOf(Square s) { return Rank(s >> 3); }
+constexpr inline File fileOf(Square s) { return File(s & 0b111); }
 
 // *** MANY A PROGRAMMER HAS "BORROWED" CODE. I AM NO EXCEPTION ***
 // Original code from https://github.com/nkarve/surge/blob/master/src/tables.cpp
@@ -680,7 +680,7 @@ constexpr u64 getRookAttacks(Square square, u64 occ) {
 
 //Returns the 'x-ray attacks' for a rook at a given square. X-ray attacks cover squares that are not immediately
 //accessible by the rook, but become available when the immediate blockers are removed from the board 
-u64 getXrayRookAttacks(Square square, u64 occ, u64 blockers) {
+inline u64 getXrayRookAttacks(Square square, u64 occ, u64 blockers) {
     u64 attacks = getRookAttacks(square, occ);
     blockers &= attacks;
     return attacks ^ getRookAttacks(square, occ ^ blockers);
@@ -746,7 +746,7 @@ constexpr u64 getBishopAttacks(Square square, u64 occ) {
 
 //Returns the 'x-ray attacks' for a bishop at a given square. X-ray attacks cover squares that are not immediately
 //accessible by the rook, but become available when the immediate blockers are removed from the board 
-u64 getXrayBishopAttacks(Square square, u64 occ, u64 blockers) {
+inline u64 getXrayBishopAttacks(Square square, u64 occ, u64 blockers) {
     u64 attacks = getBishopAttacks(square, occ);
     blockers &= attacks;
     return attacks ^ getBishopAttacks(square, occ ^ blockers);
@@ -867,6 +867,10 @@ public:
 
     int halfMoveClock;
 
+    bool doubleCheck = false;
+    u64 checkMask = 0;
+    u64 pinners = 0;
+
     void reset() {
         // Reset position
         white[0] = 0xFF00ULL;
@@ -891,6 +895,7 @@ public:
         halfMoveClock = 0;
 
         recompute();
+        updateCheckPin();
     }
 
     inline void clearIndex(int index) {
@@ -918,31 +923,32 @@ public:
     }
 
     inline void generatePawnMoves(MoveList& moves) {
-        u64 pawns = (side) * (white[0]) + (!side) * (black[0]);
+        u64 pawns = side ? white[0] : black[0];
 
-        u64 pawnPushes = (side) * (white[0] << 8) + (!side) * (black[0] >> 8); // Branchless if to get pawn bitboard
+        u64 pawnPushes = side ? (white[0] << 8) : (black[0] >> 8);
         pawnPushes &= emptySquares;
         int currentIndex;
 
         u64 pawnCaptureRight = pawns & ~(Precomputed::isOnH);
-        pawnCaptureRight = (side) * (pawnCaptureRight << 9) + (!side) * (pawnCaptureRight >> 7); // Branchless if to get pawn bitboard
-        pawnCaptureRight &= (side) * (blackPieces)+(!side) * (whitePieces);
+        pawnCaptureRight = side ? (pawnCaptureRight << 9) : (pawnCaptureRight >> 7);
+        pawnCaptureRight &= side ? blackPieces : whitePieces;
 
         u64 pawnCaptureLeft = pawns & ~(Precomputed::isOnA);
-        pawnCaptureLeft = (side) * (pawnCaptureLeft << 7) + (!side) * (pawnCaptureLeft >> 9); // Branchless if to get pawn bitboard
-        pawnCaptureLeft &= (side) * (blackPieces)+(!side) * (whitePieces);
+        pawnCaptureLeft = side ? (pawnCaptureLeft << 7) : (pawnCaptureLeft >> 9);
+        pawnCaptureLeft &= side ? blackPieces : whitePieces;
 
         u64 pawnCaptureRightEP = pawns & ~(Precomputed::isOnH);
-        pawnCaptureRightEP = (side) * (pawnCaptureRightEP << 9) + (!side) * (pawnCaptureRightEP >> 7); // Branchless if to get pawn bitboard
+        pawnCaptureRightEP = side ? (pawnCaptureRightEP << 9) : (pawnCaptureRightEP >> 7);
         pawnCaptureRightEP &= enPassant;
 
         u64 pawnCaptureLeftEP = pawns & ~(Precomputed::isOnA);
-        pawnCaptureLeftEP = (side) * (pawnCaptureLeftEP << 7) + (!side) * (pawnCaptureLeftEP >> 9); // Branchless if to get pawn bitboard
+        pawnCaptureLeftEP = side ? (pawnCaptureLeftEP << 7) : (pawnCaptureLeftEP >> 9);
         pawnCaptureLeftEP &= enPassant;
 
-        u64 pawnDoublePush = (side) * (white[0] << 16) + (!side) * (black[0] >> 16); // Branchless if to get pawn bitboard
-        pawnDoublePush &= emptySquares & ((side) * (emptySquares << 8) + (!side) * (emptySquares >> 8));
-        pawnDoublePush &= (side) * (Precomputed::isOn2 << 16) + (!side) * (Precomputed::isOn7 >> 16);
+        u64 pawnDoublePush = side ? (white[0] << 16) : (black[0] >> 16);
+        pawnDoublePush &= emptySquares & (side ? (emptySquares << 8) : (emptySquares >> 8));
+        pawnDoublePush &= side ? (Precomputed::isOn2 << 16) : (Precomputed::isOn7 >> 16);
+
 
 
         while (pawnDoublePush) {
@@ -1037,7 +1043,7 @@ public:
         }
     }
 
-    void generateBishopMoves(MoveList& moves) {
+    inline void generateBishopMoves(MoveList& moves) {
         int currentIndex;
 
         u64 bishopBitboard = side ? white[2] : black[2];
@@ -1073,7 +1079,7 @@ public:
         }
     }
 
-    void generateRookMoves(MoveList& moves) {
+    inline void generateRookMoves(MoveList& moves) {
         int currentIndex;
 
         u64 rookBitboard = side ? white[3] : black[3];
@@ -1109,7 +1115,7 @@ public:
         }
     }
 
-    void generateQueenMoves(MoveList& moves) {
+    inline void generateQueenMoves(MoveList& moves) {
         int currentIndex;
 
         u64 queenBitboard = side ? white[4] : black[4];
@@ -1146,7 +1152,7 @@ public:
         }
     }
 
-    void generateKingMoves(MoveList& moves) {
+    inline void generateKingMoves(MoveList& moves) {
         u64 kingBitboard = side ? white[5] : black[5];
         if (!kingBitboard) return;
         u64 ourBitboard = side ? whitePieces : blackPieces;
@@ -1255,6 +1261,58 @@ public:
         return (LINE[from][to] & (1ULL << test));
     }
 
+    // Update checkers and pinners
+    inline void updateCheckPin() {
+        int kingIndex = ctzll(side ? white[5] : black[5]);
+
+        u64 occ = whitePieces | blackPieces;
+        u64 ourPieces = side ? whitePieces : blackPieces;
+        auto& opponentPieces = side ? black : white;
+        u64 enemyRooksQueens = side ? (black[3] | black[4]) : (white[3] | white[4]);
+        u64 enemyBishopsQueens = side ? (black[2] | black[4]) : (white[2] | white[4]);
+
+        // Direct attacks for potential checks
+        u64 rookChecks = getRookAttacks(Square(kingIndex), occ) & enemyRooksQueens;
+        u64 bishopChecks = getBishopAttacks(Square(kingIndex), occ) & enemyBishopsQueens;
+        u64 checks = rookChecks | bishopChecks;
+        checkMask = 0; // If no checks, will be set to all 1s later.
+
+        // *** KNIGHT ATTACKS ***
+        u64 knightAttacks = Precomputed::knightMoves[kingIndex] & opponentPieces[1];
+        while (knightAttacks) {
+            checkMask |= (1ULL << ctzll(knightAttacks));
+            knightAttacks &= knightAttacks - 1;
+        }
+
+        // *** PAWN ATTACKS ***
+        if (side) {
+            if ((opponentPieces[0] & (1ULL << (kingIndex + 7))) && (kingIndex % 8 != 0))
+                checkMask |= (1ULL << (kingIndex + 7));
+            if ((opponentPieces[0] & (1ULL << (kingIndex + 9))) && (kingIndex % 8 != 7))
+                checkMask |= (1ULL << (kingIndex + 9));
+        }
+        else {
+            if ((opponentPieces[0] & (1ULL << (kingIndex - 7))) && (kingIndex % 8 != 7))
+                checkMask |= (1ULL << (kingIndex - 7));
+            if ((opponentPieces[0] & (1ULL << (kingIndex - 9))) && (kingIndex % 8 != 0))
+                checkMask |= (1ULL << (kingIndex - 9));
+        }
+
+        (popcountll(checks | checkMask) > 1) ? doubleCheck = true : doubleCheck = false;
+
+        while (checks) {
+            checkMask |= LINESEG[kingIndex][ctzll(checks)];
+            checks &= checks - 1;
+        }
+
+        if (!checkMask) checkMask = POS_INF; // If no checks, set to all ones
+
+        // ****** PIN STUFF HERE ******
+        u64 rookXrays = getXrayRookAttacks(Square(kingIndex), occ, ourPieces) & enemyRooksQueens;
+        u64 bishopXrays = getXrayBishopAttacks(Square(kingIndex), occ, ourPieces) & enemyBishopsQueens;
+        pinners = rookXrays | bishopXrays;
+    }
+
     bool isLegalMove(Move m) {
         int from = m.startSquare();
         int to = m.endSquare();
@@ -1292,6 +1350,9 @@ public:
         }
 
         u64& king = side ? white[5] : black[5];
+        int kingIndex = ctzll(side ? white[5] : black[5]);
+
+        u64 ourPieces = side ? whitePieces : blackPieces;
 
         // King moves
         if (king & (1ULL << from)) {
@@ -1301,11 +1362,15 @@ public:
 
             pieces ^= king;
             king = 0;
-            
+
             bool ans = !isUnderAttack(side, to);
             pieces = lastPieces;
             king = lastKing;
             return ans;
+        }
+
+        if (doubleCheck) { // Returns false because more than 1 checker requires a king move, and those are already handled
+            return false;
         }
 
         // En passant check
@@ -1315,60 +1380,10 @@ public:
             return !testBoard.isInCheck(side);
         }
 
-        int kingIndex = ctzll(side ? white[5] : black[5]);
-
-        u64 occ = whitePieces | blackPieces;
-        u64 ourPieces = side ? whitePieces : blackPieces;
-        auto& opponentPieces = side ? black : white;
-        u64 enemyRooksQueens = side ? (black[3] | black[4]) : (white[3] | white[4]);
-        u64 enemyBishopsQueens = side ? (black[2] | black[4]) : (white[2] | white[4]);
-
-        // Direct attacks for potential checks
-        u64 rookChecks = getRookAttacks(Square(kingIndex), occ) & enemyRooksQueens;
-        u64 bishopChecks = getBishopAttacks(Square(kingIndex), occ) & enemyBishopsQueens;
-        u64 checks = rookChecks | bishopChecks;
-        u64 checkMask = 0; // If no checks, will be set to all 1s later.
-
-        // *** KNIGHT ATTACKS ***
-        u64 knightAttacks = Precomputed::knightMoves[kingIndex] & opponentPieces[1];
-        while (knightAttacks) {
-            checkMask |= (1ULL << ctzll(knightAttacks));
-            knightAttacks &= knightAttacks - 1;
-        }
-
-        // *** PAWN ATTACKS ***
-        if (side) {
-            if ((opponentPieces[0] & (1ULL << (kingIndex + 7))) && (kingIndex % 8 != 0))
-                checkMask |= (1ULL << (kingIndex + 7));
-            if ((opponentPieces[0] & (1ULL << (kingIndex + 9))) && (kingIndex % 8 != 7))
-                checkMask |= (1ULL << (kingIndex + 9));
-        }
-        else {
-            if ((opponentPieces[0] & (1ULL << (kingIndex - 7))) && (kingIndex % 8 != 7))
-                checkMask |= (1ULL << (kingIndex - 7));
-            if ((opponentPieces[0] & (1ULL << (kingIndex - 9))) && (kingIndex % 8 != 0))
-                checkMask |= (1ULL << (kingIndex - 9));
-        }
-
-        if (popcountll(checks) + popcountll(checkMask) > 1) { // Returns false because more than 1 checker requires a king move, and those are already handled
-            return false;
-        }
-
-        while (checks) {
-            checkMask |= LINESEG[kingIndex][ctzll(checks)];
-            checks &= checks - 1;
-        }
-        if (!checkMask)
-            checkMask = POS_INF; // If no checks, set to all ones
-
         // Validate move
         if ((1ULL << to) & ~checkMask) return false;
 
-
-        // X-ray attacks for potential pins
-        u64 rookXrays = getXrayRookAttacks(Square(kingIndex), occ, ourPieces) & enemyRooksQueens;
-        u64 bishopXrays = getXrayBishopAttacks(Square(kingIndex), occ, ourPieces) & enemyBishopsQueens;
-        u64 xrays = rookXrays | bishopXrays;
+        u64 xrays = pinners;
 
         // Handle pin scenario
         while (xrays) {
@@ -1528,6 +1543,7 @@ public:
         halfMoveClock++;
 
         recompute();
+        updateCheckPin();
     }
 
     void loadFromFEN(const std::deque<string>& inputFEN) {
@@ -1596,6 +1612,7 @@ public:
         halfMoveClock = std::stoi(inputFEN.at(4));
 
         recompute();
+        updateCheckPin();
     }
 
     inline int black_to_white(int index) {
@@ -1744,12 +1761,23 @@ Move::Move(string strIn, Board& board) {
     *this = Move(from, to, promo, capture, castle, ep);
 }
 
-u64 _perft(Board& board, int depth) {
+u64 _bulk(Board& board, int depth) {
     if (depth == 1) {
         return board.generateLegalMoves().count;
     }
 
-    else if (depth == 0) {
+    MoveList moves = board.generateLegalMoves();
+    u64 localNodes = 0;
+    for (int i = 0; i < moves.count; ++i) {
+        Board testBoard = board;
+        testBoard.move(moves.moves[i]);
+        localNodes += _bulk(testBoard, depth - 1);
+    }
+    return localNodes;
+}
+
+u64 _perft(Board& board, int depth) {
+    if (depth == 0) {
         return 1ULL;
     }
 
@@ -1763,25 +1791,36 @@ u64 _perft(Board& board, int depth) {
     return localNodes;
 }
 
-u64 perft(Board& board, int depth) {
-    if (depth < 1) return -1;
+void perft(Board& board, int depth, bool bulk) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+
+    if (depth < 1) return;
 
     MoveList moves = board.generateLegalMoves();
-    //moves.sortByString(board);
+    moves.sortByString(board);
     u64 localNodes = 0;
     u64 movesThisIter = 0;
+
     for (int i = 0; i < moves.count; ++i) {
         Board testBoard = board;
         testBoard.move(moves.moves[i]);
-        movesThisIter = _perft(testBoard, depth - 1);
+        movesThisIter = bulk ? _bulk(testBoard, depth - 1) : _perft(testBoard, depth - 1);
         localNodes += movesThisIter;
         cout << moves.moves[i].toString(board) << ": " << movesThisIter << endl;
     }
-    return localNodes;
+
+    int nps = (int)(((double)localNodes) / (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count()) * 1000000000);
+
+    double timeTaken = (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
+    if (timeTaken / 1000000 < 1000) cout << "Time taken: " << timeTaken / 1000000 << " milliseconds" << endl;
+    else cout << "Time taken: " << timeTaken / 1000000000 << " seconds" << endl;
+    cout << "Generated moves with " << formatNum(localNodes) << " nodes and NPS of " << formatNum(nps) << endl;
 }
 
 void perftSuite(const string& filePath) {
     Board board;
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::fstream file(filePath);
 
@@ -1793,6 +1832,7 @@ void perftSuite(const string& filePath) {
     string line;
     int totalTests = 0;
     int passedTests = 0;
+    u64 totalNodes = 0;
 
     while (std::getline(file, line)) {
         auto start = std::chrono::high_resolution_clock::now();
@@ -1850,7 +1890,7 @@ void perftSuite(const string& filePath) {
             u64 expectedNodes = std::stoull(expectedStr);
 
             // Execute perft for the given depth
-            u64 actualNodes = _perft(board, depth);
+            u64 actualNodes = _bulk(board, depth);
 
             nodes += actualNodes;
 
@@ -1863,6 +1903,8 @@ void perftSuite(const string& filePath) {
             totalTests++;
             if (pass) passedTests++;
             else allPassed = false;
+
+            totalNodes += actualNodes;
         }
 
         int nps = (int)(((double)nodes) / (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count()) * 1000000000);
@@ -1881,8 +1923,12 @@ void perftSuite(const string& filePath) {
         cout << "----------------------------------------" << endl << endl;
     }
 
-    cout << "Perft Suite Completed: " << passedTests << " / "
-        << totalTests << " tests passed." << endl;
+    cout << "Perft Suite Completed: " << passedTests << " / " << totalTests << " tests passed." << endl;
+    int nps = (int)(((double)totalNodes) / (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count()) * 1000000000);
+    double timeTaken = (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
+    if (timeTaken / 1000000 < 1000) cout << "Time taken: " << timeTaken / 1000000 << " milliseconds" << endl;
+    else cout << "Time taken: " << timeTaken / 1000000000 << " seconds" << endl;
+    cout << "Generated moves with " << formatNum(totalNodes) << " nodes and NPS of " << formatNum(nps) << endl;
 }
 
 int main() {
@@ -1949,13 +1995,10 @@ int main() {
             }
         }
         else if (parsedcommand.at(0) == "perft") {
-            auto start = std::chrono::high_resolution_clock::now();
-            u64 nodes = perft(currentPos, stoi(parsedcommand.at(1)));
-            int nps = (int)(((double)nodes) / (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count()) * 1000000000);
-            double timeTaken = (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
-            if (timeTaken / 1000000 < 1000) cout << "Time taken: " << timeTaken / 1000000 << " milliseconds" << endl;
-            else cout << "Time taken: " << timeTaken / 1000000000 << " seconds" << endl;
-            cout << "Generated moves with " << formatNum(nodes) << " nodes and NPS of " << formatNum(nps) << endl;
+            perft(currentPos, stoi(parsedcommand.at(1)), false);
+        }
+        else if (parsedcommand.at(0) == "bulk") {
+            perft(currentPos, stoi(parsedcommand.at(1)), true);
         }
         else if (parsedcommand.at(0) == "perftsuite") {
             perftSuite(parsedcommand.at(1));
