@@ -4,8 +4,8 @@
 #include <deque>
 #include <chrono>
 #include <array>
-#include <sstream>
 #include <bitset>
+#include <algorithm>
 
 #define ctzll(x) ((x) ? _tzcnt_u64(x) : 64)
 #define clzll(x) ((x) ? __lzcnt64(x) : 64)
@@ -1728,7 +1728,7 @@ int main() {
     Board currentPos;
     currentPos.reset();
     std::atomic<bool> breakFlag(false);
-    cout << "Bot ready and awaiting commands" << endl;
+    cout << "Forsaken is ready and awaiting commands" << endl;
 
     while (true) {
         std::getline(std::cin, command);
@@ -1762,12 +1762,6 @@ int main() {
         }
         else if (command == "quit") {
             breakFlag.store(true);
-            // Ensure the search thread is joined before exiting
-            if (searchThreadOpt.has_value()) {
-                if (searchThreadOpt->joinable()) {
-                    searchThreadOpt->join();
-                }
-            }
             return 0;
         }
         else if (command == "debug.gamestate") {
