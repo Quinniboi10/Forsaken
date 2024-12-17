@@ -1,19 +1,10 @@
 #include <iostream>
 #include <string>
-#include <vector>
 #include <fstream>
-#include <sstream>
 #include <deque>
-#include <map>
-#include <climits>
-#include <limits>
 #include <chrono>
 #include <array>
-#include <thread>
-#include <atomic>
-#include <optional>
-#include <random>
-#include <unordered_map>
+#include <sstream>
 #include <bitset>
 
 #define ctzll(x) ((x) ? _tzcnt_u64(x) : 64)
@@ -220,8 +211,6 @@ class Precomputed {
 public:
     static std::array<u64, 64> knightMoves;
     static std::array<u64, 64> kingMoves;
-    static std::array<std::array<u64, 64>, 12> zobrist;
-    static std::array<std::array<u64, 9>, 64> rays;
     static u64 isOnA;
     static u64 isOnB;
     static u64 isOnC;
@@ -281,33 +270,6 @@ public:
             if (rank == 7) isOn8 |= 1ULL << i;
         }
 
-        // *** MOVE GENERATION ***
-
-        for (int i = 0; i < 64; ++i) {
-            u64 all = 0;
-            for (int dir : indexes::dirs) {
-                u64 ray = 0;
-                int currentIndex = i;
-
-                while (true) {
-                    // Break if wrapping across ranks (for EAST/WEST)
-                    if ((dir == indexes::EAST || dir == indexes::NORTH_EAST || dir == indexes::SOUTH_EAST) && (isOnH & (1ULL << currentIndex))) break;
-                    if ((dir == indexes::WEST || dir == indexes::NORTH_WEST || dir == indexes::SOUTH_WEST) && (isOnA & (1ULL << currentIndex))) break;
-
-                    currentIndex += shifts::dirs[dir];
-
-                    // Break if out of bounds
-                    if (currentIndex < 0 || currentIndex >= 64) break;
-
-                    setBit(ray, currentIndex, 1);
-
-                }
-                rays[i][dir] = ray;
-                all |= ray;
-            }
-            rays[i][8] = all;
-        }
-
         // *** KNIGHT MOVES ***
         bool onNEdge;
         bool onNEdge2;
@@ -365,26 +327,11 @@ public:
 
             kingMoves[i] = positions;
         }
-
-        // *** MAKE RANDOM ZOBRIST TABLE ****
-        std::random_device rd;
-
-        std::mt19937_64 engine(rd());
-
-        std::uniform_int_distribution<u64> dist(0, std::numeric_limits<u64>::max());
-
-        for (auto& pieceTable : zobrist) {
-            for (int i = 0; i < 64; ++i) {
-                pieceTable[i] = dist(engine);
-            }
-        }
     }
 };
 
 std::array<u64, 64> Precomputed::knightMoves;
 std::array<u64, 64> Precomputed::kingMoves;
-std::array<std::array<u64, 64>, 12> Precomputed::zobrist;
-std::array<std::array<u64, 9>, 64> Precomputed::rays;
 u64 Precomputed::isOnA;
 u64 Precomputed::isOnB;
 u64 Precomputed::isOnC;
@@ -1249,10 +1196,10 @@ public:
         while (xrays) {
             // Identify the xray attacker
             int xrayAttackerSquare = ctzll(xrays);
-            u64 p = LINESEG[kingIndex][xrayAttackerSquare];
+            u64 p= LINESEG[kingIndex][xrayAttackerSquare];
 
             // Find how many of our pieces lie on that line (excluding the king itself)
-            u64 pinnedPieces = p & ourPieces & ~(side ? white[5] : black[5]);
+            u64 pinnedPieces = p& ourPieces & ~(side ? white[5] : black[5]);
 
             if ((pinnedPieces & 1ULL << from) && !aligned(from, to, kingIndex)) return false;
 
@@ -1781,7 +1728,6 @@ int main() {
     Board currentPos;
     currentPos.reset();
     std::atomic<bool> breakFlag(false);
-    std::optional<std::thread> searchThreadOpt;
     cout << "Bot ready and awaiting commands" << endl;
 
     while (true) {
