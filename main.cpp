@@ -239,8 +239,6 @@ public:
     static std::array<u64, 64> kingMoves;
     static std::array<std::array<u64, 64>, 12> zobrist;
     static std::array<std::array<u64, 9>, 64> rays;
-    static std::array<u64, 64> rookAttack;
-    static std::array<u64, 64> bishopAttack;
     static u64 isOnA;
     static u64 isOnB;
     static u64 isOnC;
@@ -257,71 +255,6 @@ public:
     static u64 isOn6;
     static u64 isOn7;
     static u64 isOn8;
-    static inline const std::array<int, 64> white_pawn_table = {
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 5, 10, 10, 5, 0, 0,
-        0, 0, 10, 20, 20, 10, 0, 0,
-        0, 0, 10, 20, 20, 10, 0, 0,
-        0, 0, 5, 10, 10, 5, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0
-    };
-
-    static inline const std::array<int, 64> white_knight_table = {
-        -50, -40, -40, -40, -40, -40, -40, -50,
-        -40, 20, 0, 0, 0, 0, -20, -40,
-        -40, 0, 10, 20, 20, 10, 0, -40,
-        -40, 0, 0, 25, 25, 0, 0, -40,
-        -40, 0, 0, 25, 25, 0, 0, -40,
-        -40, 0, 10, 20, 20, 10, 0, -40,
-        -40, -20, 0, 0, 0, 0, -20, -40,
-        -50, -40, -40, -40, -40, -40, -40, -50
-    };
-
-    static inline const std::array<int, 64> white_bishop_table = {
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20
-    };
-
-    static inline const std::array<int, 64> white_rook_table = {
-         0,  0,  0,  0,  0,  0,  0,  0,
-         5, 10, 10, 10, 10, 10, 10,  5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-         0,  0,  0,  5,  5,  0,  0,  0
-    };
-
-    static inline const std::array<int, 64> white_queen_table = {
-        -20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-          0,  0,  5,  5,  5,  5,  0, -5,
-         -5,  0,  5,  5,  5,  5,  0, -5,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20
-    };
-
-    static inline const std::array<int, 64> white_king_table = {
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-         20, 20,  0,  0,  0,  0, 20, 20,
-         20, 30, 10,  0,  0, 10, 30, 20
-    };
 
     static void compute() {
         // *** FILE AND COL ARRAYS ***
@@ -390,59 +323,6 @@ public:
                 all |= ray;
             }
             rays[i][8] = all;
-        }
-
-        // *** ROOK MOVES ***
-
-        for (int i = 0; i < 64; ++i) {
-            u64 all = 0;
-            for (int dir : indexes::straightDirs) {
-                u64 ray = 0;
-                int currentIndex = i;
-
-                while (true) {// Break if wrapping across ranks (for EAST/WEST)
-                    if ((dir == indexes::EAST) && ((isOnG | isOnH) & (1ULL << currentIndex))) break;
-                    if ((dir == indexes::WEST) && ((isOnA | isOnB) & (1ULL << currentIndex))) break;
-
-                    currentIndex += shifts::dirs[dir];
-
-                    // Break if out of bounds
-                    if (currentIndex < 0 || currentIndex >= 64) break;
-
-                    if ((shifts::dirs[dir] > 1 || shifts::dirs[dir] < -1) && (currentIndex < 8 || currentIndex >= 56)) break; // Shift is not horizontal
-
-                    setBit(ray, currentIndex, 1);
-                }
-                all |= ray;
-            }
-            rookAttack[i] = all;
-        }
-
-
-        // *** BISHOP MOVES ***
-
-        for (int i = 0; i < 64; ++i) {
-            u64 all = 0;
-            for (int dir : indexes::diagonalDirs) {
-                u64 ray = 0;
-                int currentIndex = i;
-
-                while (true) {// Break if wrapping across ranks (for EAST/WEST)
-                    if ((dir == indexes::NORTH_EAST || dir == indexes::SOUTH_EAST) && ((isOnG | isOnH) & (1ULL << currentIndex))) break;
-                    if ((dir == indexes::NORTH_WEST || dir == indexes::SOUTH_WEST) && ((isOnA | isOnB) & (1ULL << currentIndex))) break;
-
-                    currentIndex += shifts::dirs[dir];
-
-                    // Break if out of bounds
-                    if (currentIndex < 0 || currentIndex >= 64) break;
-
-                    if ((shifts::dirs[dir] > 1 || shifts::dirs[dir] < -1) && (currentIndex < 8 || currentIndex >= 56)) break; // Shift is not horizontal
-
-                    setBit(ray, currentIndex, 1);
-                }
-                all |= ray;
-            }
-            bishopAttack[i] = all;
         }
 
         // *** KNIGHT MOVES ***
@@ -522,8 +402,6 @@ std::array<u64, 64> Precomputed::knightMoves;
 std::array<u64, 64> Precomputed::kingMoves;
 std::array<std::array<u64, 64>, 12> Precomputed::zobrist;
 std::array<std::array<u64, 9>, 64> Precomputed::rays;
-std::array<u64, 64> Precomputed::rookAttack;
-std::array<u64, 64> Precomputed::bishopAttack;
 u64 Precomputed::isOnA;
 u64 Precomputed::isOnB;
 u64 Precomputed::isOnC;
@@ -1620,70 +1498,6 @@ public:
         int file = index % 8;
         int mirrored_rank = 7 - rank;
         return mirrored_rank * 8 + file;
-    }
-
-    int evaluate() { // Returns evaluation in centipawns
-        //if (isDraw()) return 0;
-        //if (isCheckmate(isWhite)) return (isWhite) ? -100000 : 100000;
-        int eval = 0;
-        int whitePieces = 0;
-        int blackPieces = 0;
-
-        // Uses some magic python buffoonery https://github.com/ianfab/chess-variant-stats/blob/main/piece_values.py
-        // Based on this https://discord.com/channels/435943710472011776/1300744461281787974/1312722964915027980
-
-        // Material evaluation
-        whitePieces += popcountll(white[0]) * 100;
-        whitePieces += popcountll(white[1]) * 316;
-        whitePieces += popcountll(white[2]) * 328;
-        whitePieces += popcountll(white[3]) * 493;
-        whitePieces += popcountll(white[4]) * 982;
-
-        blackPieces += popcountll(black[0]) * 100;
-        blackPieces += popcountll(black[1]) * 316;
-        blackPieces += popcountll(black[2]) * 328;
-        blackPieces += popcountll(black[3]) * 493;
-        blackPieces += popcountll(black[4]) * 982;
-
-        eval = whitePieces - blackPieces;
-
-        // Piece value adjustment
-        if (std::abs(eval) < 950) { // Ignore if the eval is already very very high
-            for (int i = 0; i < 6; ++i) {
-                u64 currentBitboard = white[i];
-                while (currentBitboard > 0) {
-                    int currentIndex = ctzll(currentBitboard);
-
-                    if (i == 0) eval += Precomputed::white_pawn_table[currentIndex];
-                    if (i == 1) eval += Precomputed::white_knight_table[currentIndex];
-                    if (i == 2) eval += Precomputed::white_bishop_table[currentIndex];
-                    if (i == 3) eval += Precomputed::white_rook_table[currentIndex];
-                    if (i == 4) eval += Precomputed::white_queen_table[currentIndex];
-                    if (i == 5) eval += Precomputed::white_king_table[currentIndex];
-
-                    currentBitboard &= currentBitboard - 1;
-                }
-            }
-
-            for (int i = 0; i < 6; ++i) {
-                u64 currentBitboard = black[i];
-                while (currentBitboard > 0) {
-                    int currentIndex = ctzll(currentBitboard);
-
-                    if (i == 0) eval -= Precomputed::white_pawn_table[black_to_white(currentIndex)];
-                    if (i == 1) eval -= Precomputed::white_knight_table[black_to_white(currentIndex)];
-                    if (i == 2) eval -= Precomputed::white_bishop_table[black_to_white(currentIndex)];
-                    if (i == 3) eval -= Precomputed::white_rook_table[black_to_white(currentIndex)];
-                    if (i == 4) eval -= Precomputed::white_queen_table[black_to_white(currentIndex)];
-                    if (i == 5) eval -= Precomputed::white_king_table[black_to_white(currentIndex)];
-
-                    currentBitboard &= currentBitboard - 1;
-                }
-            }
-        }
-
-        // Adjust evaluation for the side to move
-        return (side) ? eval : -eval;;
     }
 };
 
