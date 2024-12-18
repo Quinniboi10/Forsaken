@@ -72,6 +72,7 @@ enum Rank : int {
 };
 
 Square& operator++(Square& s) { return s = Square(int(s) + 1); }
+Square& operator--(Square& s) { return s = Square(int(s) - 1); }
 constexpr Square operator+(Square s, Direction d) { return Square(int(s) + int(d)); }
 constexpr Square operator-(Square s, Direction d) { return Square(int(s) - int(d)); }
 Square& operator+=(Square& s, Direction d) { return s = s + d; }
@@ -1427,7 +1428,7 @@ public:
 
         int blankSquares = 0;
 
-        for (Square sq = a1; sq <= h8; ++sq) {
+        for (Square sq = h8; sq >= a1; --sq) {
             if ((1ULL << (int)sq) & Precomputed::isOnA && sq != a1) {
                 if (blankSquares / 12) ans += std::to_string(blankSquares / 12);
                 blankSquares = 0;
