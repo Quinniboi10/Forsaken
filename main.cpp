@@ -1257,6 +1257,8 @@ public:
             cout << "|" << endl;
         }
         cout << "+---+---+---+---+---+---+---+---+" << endl;
+        cout << endl;
+        cout << "Current FEN: " << exportToFEN() << endl;
     }
 
     void move(string& moveIn) {
@@ -1724,7 +1726,6 @@ int main() {
     std::deque<string> parsedcommand;
     Board currentPos;
     currentPos.reset();
-    std::atomic<bool> breakFlag(false);
     cout << "Forsaken is ready and awaiting commands" << endl;
 
     while (true) {
@@ -1758,7 +1759,6 @@ int main() {
             currentPos.move(parsedcommand.at(1));
         }
         else if (command == "quit") {
-            breakFlag.store(true);
             return 0;
         }
         else if (command == "debug.gamestate") {
