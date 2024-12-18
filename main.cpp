@@ -1200,14 +1200,8 @@ public:
         // Validate move
         if ((1ULL << to) & ~checkMask) return false;
 
-        u64 pinned = this->pinned;
-
         // Handle pin scenario
-        while (pinned) {
-            if ((pinned & 1ULL << from) && !aligned(from, to, kingIndex)) return false;
-
-            pinned &= (pinned - 1);
-        }
+        if ((pinned & 1ULL << from) && !aligned(from, to, kingIndex)) return false;
 
         // If we reach here, the move is legal
         return true;
