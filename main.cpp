@@ -6,6 +6,7 @@
 #include <array>
 #include <bitset>
 #include <algorithm>
+#include <cassert>
 
 #define ctzll(x) ((x) ? _tzcnt_u64(x) : 64)
 #define clzll(x) ((x) ? __lzcnt64(x) : 64)
@@ -14,6 +15,9 @@
 //#define ctzll(x) ((x) ? __builtin_ctzll(x) : 64)
 //#define clzll(x) ((x) ? __builtin_clzll(x) : 64)
 #define popcountll(x) __builtin_popcountll(x)
+
+#define DEBUG true
+#define IFDBG if constexpr (DEBUG)
 
 typedef uint64_t u64;
 typedef uint16_t u16;
@@ -677,7 +681,7 @@ public:
 
     bool doubleCheck = false;
     u64 checkMask = 0;
-    u64 pinners = 0;
+    u64 pinned = 0;
 
     void reset() {
         // Reset position
@@ -962,7 +966,7 @@ public:
 
     void generateKingMoves(MoveList& moves) {
         u64 kingBitboard = side ? white[5] : black[5];
-        if (!kingBitboard) return;
+        IFDBG assert(("King bitboard is 0", !kingBitboard));
         u64 ourBitboard = side ? whitePieces : blackPieces;
         int currentIndex = ctzll(kingBitboard);
 
@@ -1117,7 +1121,13 @@ public:
         // ****** PIN STUFF HERE ******
         u64 rookXrays = getXrayRookAttacks(Square(kingIndex), occ, ourPieces) & enemyRooksQueens;
         u64 bishopXrays = getXrayBishopAttacks(Square(kingIndex), occ, ourPieces) & enemyBishopsQueens;
-        pinners = rookXrays | bishopXrays;
+        u64 pinners = rookXrays | bishopXrays;
+
+        pinned = 0;
+        while (pinners) {
+            pinned |= LINESEG[ctzll(pinners)][kingIndex] & ourPieces;
+            pinners &= pinners - 1;
+        }
     }
 
     bool isLegalMove(Move m) {
@@ -1190,20 +1200,13 @@ public:
         // Validate move
         if ((1ULL << to) & ~checkMask) return false;
 
-        u64 xrays = pinners;
+        u64 pinned = this->pinned;
 
         // Handle pin scenario
-        while (xrays) {
-            // Identify the xray attacker
-            int xrayAttackerSquare = ctzll(xrays);
-            u64 p= LINESEG[kingIndex][xrayAttackerSquare];
+        while (pinned) {
+            if ((pinned & 1ULL << from) && !aligned(from, to, kingIndex)) return false;
 
-            // Find how many of our pieces lie on that line (excluding the king itself)
-            u64 pinnedPieces = p& ourPieces & ~(side ? white[5] : black[5]);
-
-            if ((pinnedPieces & 1ULL << from) && !aligned(from, to, kingIndex)) return false;
-
-            xrays &= (xrays - 1);
+            pinned &= (pinned - 1);
         }
 
         // If we reach here, the move is legal
