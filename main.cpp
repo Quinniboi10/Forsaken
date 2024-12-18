@@ -159,7 +159,7 @@ public:
         move |= flags << 12;
     }
 
-    string toString(Board& board);
+    string toString();
 
     int startSquare() { return move & 0b111111; }
     int endSquare() { return (move >> 6) & 0b111111; }
@@ -648,7 +648,7 @@ struct MoveList {
         std::array<string, 218> movesStr;
         movesStr.fill("zzzz"); // Fill with values to be sorted to back.
         for (int i = 0; i < count; ++i) {
-            movesStr[i] = moves[i].toString(board);
+            movesStr[i] = moves[i].toString();
         }
         std::sort(movesStr.begin(), movesStr.end());
 
@@ -1483,7 +1483,7 @@ public:
     }
 };
 
-string Move::toString(Board& board) {
+string Move::toString() {
     int start = startSquare();
     int end = endSquare();
 
@@ -1593,7 +1593,7 @@ void perft(Board& board, int depth, bool bulk) {
         testBoard.move(moves.moves[i]);
         movesThisIter = bulk ? _bulk(testBoard, depth - 1) : _perft(testBoard, depth - 1);
         localNodes += movesThisIter;
-        cout << moves.moves[i].toString(board) << ": " << movesThisIter << endl;
+        cout << moves.moves[i].toString() << ": " << movesThisIter << endl;
     }
 
     int nps = (int)(((double)localNodes) / (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count()) * 1000000000);
@@ -1770,7 +1770,7 @@ int main() {
             MoveList moves = currentPos.generateLegalMoves();
             cout << "Legal moves (" << moves.count << "):" << endl;
             for (int i = 0; i < moves.count; ++i) {
-                cout << moves.moves[i].toString(currentPos) << endl;
+                cout << moves.moves[i].toString() << endl;
             }
         }
         else if (parsedcommand.at(0) == "perft") {
@@ -1786,7 +1786,7 @@ int main() {
             cout << "All moves (current side to move):" << endl;
             auto moves = currentPos.generateMoves();
             for (int i = 0; i < moves.count; ++i) {
-                cout << moves.moves[i].toString(currentPos) << endl;
+                cout << moves.moves[i].toString() << endl;
             }
         }
         else if (command == "debug.popcnt") {
