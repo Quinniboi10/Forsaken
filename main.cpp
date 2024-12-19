@@ -859,7 +859,7 @@ public:
     void generateBishopMoves(MoveList& moves) {
         int currentIndex;
 
-        u64 bishopBitboard = side ? white[2] : black[2];
+        u64 bishopBitboard = side ? (white[2] | white[4]) : (black[2] | black[4]);
         u64 ourBitboard = side ? whitePieces : blackPieces;
 
         u64 occupancy = whitePieces | blackPieces;
@@ -895,7 +895,7 @@ public:
     void generateRookMoves(MoveList& moves) {
         int currentIndex;
 
-        u64 rookBitboard = side ? white[3] : black[3];
+        u64 rookBitboard = side ? (white[3] | white[4]) : (black[3] | black[4]);
         u64 ourBitboard = side ? whitePieces : blackPieces;
 
         u64 occupancy = whitePieces | blackPieces;
@@ -925,43 +925,6 @@ public:
             }
 
             rookBitboard &= rookBitboard - 1; // Clear least significant bit
-        }
-    }
-
-    void generateQueenMoves(MoveList& moves) {
-        int currentIndex;
-
-        u64 queenBitboard = side ? white[4] : black[4];
-        u64 ourBitboard = side ? whitePieces : blackPieces;
-
-        u64 occupancy = whitePieces | blackPieces;
-
-        u64 moveMask;
-
-        while (queenBitboard > 0) {
-            currentIndex = ctzll(queenBitboard);
-
-            moveMask = getBishopAttacks(Square(currentIndex), occupancy);
-            moveMask |= getRookAttacks(Square(currentIndex), occupancy);
-
-            moveMask &= ~ourBitboard;
-
-            u64 emptyMoves = moveMask & emptySquares;
-            u64 captures = moveMask & ~(emptySquares | ourBitboard);
-
-            // Make move with each legal move in mask
-            while (emptyMoves > 0) {
-                int maskIndex = ctzll(emptyMoves);
-                moves.add(Move(currentIndex, maskIndex));
-                emptyMoves &= emptyMoves - 1;
-            }
-            while (captures > 0) {
-                int maskIndex = ctzll(captures);
-                moves.add(Move(currentIndex, maskIndex, CAPTURE));
-                captures &= captures - 1;
-            }
-
-            queenBitboard &= queenBitboard - 1; // Clear least significant bit
         }
     }
 
@@ -1003,12 +966,17 @@ public:
 
     MoveList generateMoves() {
         MoveList moves;
+        generateKingMoves(moves);
+
+        if (doubleCheck) { // Returns early when double checks
+            return moves;
+        }
+
         generatePawnMoves(moves);
         generateKnightMoves(moves);
         generateBishopMoves(moves);
         generateRookMoves(moves);
-        generateQueenMoves(moves);
-        generateKingMoves(moves);
+        // Queen moves are part of bishop/rook gen
 
         return moves;
     }
